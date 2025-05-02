@@ -1,0 +1,174 @@
+
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>طباعة استكر جهاز</title>
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      direction: rtl;
+      background-color: #f9f9f9;
+    }
+
+    .label {
+      width: 2.99in;
+      height: 2.01in;
+      border: 1px dashed #000;
+      padding: 10px;
+      box-sizing: border-box;
+      font-size: 12px;
+      background-color: white;
+      margin: 20px auto;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+    input, button {
+      font-size: 16px;
+      padding: 5px 10px;
+      margin: 5px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 30px;
+    }
+
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+
+    th, td {
+      padding: 8px;
+      text-align: center;
+    }
+
+    .print-area {
+      display: none;
+    }
+
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .print-area, .print-area * {
+        visibility: visible;
+      }
+      .print-area {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2>أدخل الرقم التسلسلي للجهاز</h2>
+  <input type="text" id="serialInput" placeholder="Serial Number">
+  <button onclick="fetchData()">عرض الاستكر</button>
+  <button onclick="fetchAllDevices()">عرض جميع الأجهزة</button>
+  <button onclick="window.print()">طباعة</button>
+
+  <div id="label" class="label hidden"></div>
+
+  <div id="devicesTable"></div>
+
+  <div id="printLabel" class="print-area"></div>
+
+  <script>
+    const apiUrl = 'https://script.google.com/macros/s/AKfycbyPsLeMWY_cr5l5zlX6NsqGftyJxa8uDXRAiMkhWijYaRxWgZtMhaqZbqGxiXoZoBHQ5A/exec';
+
+    function fetchData(serial = null, autoPrint = false) {
+      const inputSerial = serial || document.getElementById('serialInput').value.trim();
+      if (!inputSerial) {
+        alert("الرجاء إدخال الرقم التسلسلي");
+        return;
+      }
+
+      fetch(`${apiUrl}?serial=${encodeURIComponent(inputSerial)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+
+          const labelDiv = document.getElementById(serial ? 'printLabel' : 'label');
+          labelDiv.classList.remove('hidden');
+          labelDiv.innerHTML = `
+            <div class="label">
+              <strong>نوع الجهاز:</strong> ${data.DeviceType}<br>
+              <strong>العلامة التجارية:</strong> ${data.Brand}<br>
+              <strong>الموديل:</strong> ${data.Model}<br>
+              <strong>العميل:</strong> ${data["Customer Name"]}<br>
+              <strong>الهاتف:</strong> ${data["Customer Phone"]}<br>
+              <strong>البريد:</strong> ${data["Customer Email"]}<br>
+              <strong>المشكلة:</strong> ${data.Problem}<br>
+              <img src="${data.QR}" width="60" height="60">
+            </div>
+          `;
+
+          if (autoPrint) {
+            setTimeout(() => window.print(), 500);
+          }
+        })
+        .catch(err => {
+          alert("حدث خطأ أثناء جلب البيانات");
+          console.error(err);
+        });
+    }
+
+    function fetchAllDevices() {
+      fetch(apiUrl)
+        .then(res => res.json())
+        .then(data => {
+          if (!Array.isArray(data)) {
+            alert("البيانات غير متوفرة أو التنسيق غير صحيح.");
+            return;
+          }
+
+          let tableHtml = `
+            <table>
+              <thead>
+                <tr>
+                  <th>SerialNumber</th>
+                  <th>DeviceType</th>
+                  <th>Brand</th>
+                  <th>Model</th>
+                  <th>Customer Name</th>
+                  <th>طباعة</th>
+                </tr>
+              </thead>
+              <tbody>
+          `;
+
+          data.slice(1).forEach(row => {
+            const serial = row[1];
+            tableHtml += `
+              <tr>
+                <td>${serial}</td>
+                <td>${row[2]}</td>
+                <td>${row[3]}</td>
+                <td>${row[4]}</td>
+                <td>${row[5]}</td>
+                <td><button onclick="fetchData('${serial}', true)">🖨️ طباعة</button></td>
+              </tr>
+            `;
+          });
+
+          tableHtml += '</tbody></table>';
+          document.getElementById('devicesTable').innerHTML = tableHtml;
+        })
+        .catch(err => {
+          alert("حدث خطأ أثناء جلب قائمة الأجهزة");
+          console.error(err);
+        });
+    }
+  </script>
+</body>
+</html>
